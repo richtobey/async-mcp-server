@@ -135,7 +135,6 @@ export async function startServer(config) {
       const server = createServer();
       const transport = new StdioServerTransport();
       await server.connect(transport);
-      console.error('MCP facade running on stdio');
       return;
     } catch (error) {
       console.error('Failed to start stdio server:', error);
