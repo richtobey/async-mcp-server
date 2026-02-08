@@ -1,0 +1,22 @@
+{
+  "name": "async-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "mcp-facade": "bin/mcp-facade.js",
+    "async-mcp-server": "bin/mcp-facade.js"
+  },
+  "scripts": {
+    "start": "node bin/mcp-facade.js",
+    "client": "node client/facade_client.js",
+    "test": "bash scripts/run-tests.sh"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "express": "^5.2.1",
+    "graphql-ws": "^6.0.1",
+    "ws": "^8.18.0",
+    "zod": "^4.3.6"
+  }
+}

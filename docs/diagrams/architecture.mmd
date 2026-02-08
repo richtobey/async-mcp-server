@@ -1,0 +1,5 @@
+flowchart LR;
+  C[MCP Client] -->|MCP request| F[Facade Adapter];
+  F -->|GraphQL mutation| B[Backend GraphQL];
+  B -->|Subscription updates| F;
+  F -->|SSE + MCP notifications| C;
