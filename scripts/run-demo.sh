@@ -1,20 +1,75 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+LOG_DIR="${LOG_DIR:-./logs}"
+FACADE_LOG="${LOG_DIR}/facade.log"
+BACKEND_LOG="${LOG_DIR}/backend.log"
+DEMO_TIMEOUT="${DEMO_TIMEOUT:-45}"
+GRAPHQL_API_TOKEN="${GRAPHQL_API_TOKEN:-dev-token}"
+
+mkdir -p "$LOG_DIR"
+
 cleanup() {
+  status=$?
+  if [[ $status -ne 0 ]]; then
+    echo ""
+    echo "Demo failed. Collecting diagnostics..."
+    docker compose ps || true
+    docker compose logs --no-color backend > "$BACKEND_LOG" 2>&1 || true
+    echo "Backend logs (last 120 lines):"
+    tail -n 120 "$BACKEND_LOG" || true
+    if [[ -f "$FACADE_LOG" ]]; then
+      echo "Facade logs (last 120 lines):"
+      tail -n 120 "$FACADE_LOG" || true
+    fi
+  fi
   docker compose down >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
+echo "Installing dependencies..."
 npm install
 
-docker compose up --build -d
+echo "Starting backend..."
+docker compose up --build -d backend
 
-node bin/mcp-facade.js http://127.0.0.1:5000/graphql --listen 7000 &
+echo "Waiting for backend to be ready..."
+for _ in {1..20}; do
+  if curl -s -o /dev/null -w "%{http_code}" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${GRAPHQL_API_TOKEN}" \
+    -d '{"query":"{__typename}"}' \
+    http://127.0.0.1:5000/graphql | grep -q "200"; then
+    break
+  fi
+  sleep 1
+done
+
+echo "Starting facade..."
+node bin/mcp-facade.js http://127.0.0.1:5000/graphql --listen 7000 \
+  --header "Authorization: Bearer ${GRAPHQL_API_TOKEN}" \
+  >"$FACADE_LOG" 2>&1 &
 FACADE_PID=$!
 
 sleep 2
 
-node client/facade_client.js http://127.0.0.1:7000
+echo "Running client (timeout ${DEMO_TIMEOUT}s)..."
+python3 - <<'PY'
+import os
+import subprocess
+import sys
 
+timeout = int(os.environ.get("DEMO_TIMEOUT", "45"))
+try:
+    subprocess.run(
+        ["node", "client/facade_client.js", "http://127.0.0.1:7000"],
+        check=True,
+        timeout=timeout,
+    )
+except subprocess.TimeoutExpired:
+    print(f"Client timed out after {timeout}s")
+    sys.exit(124)
+PY
+
+echo "Demo completed."
 kill "$FACADE_PID"

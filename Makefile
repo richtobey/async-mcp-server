@@ -1,7 +1,7 @@
 .PHONY: demo test diagrams
 
 demo:
-	scripts/run-demo.sh
+	DEMO_TIMEOUT=60 scripts/run-demo.sh
 
 test:
 	npm test

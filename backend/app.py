@@ -55,13 +55,30 @@ def get_auth_header(info) -> str | None:
     return None
 
 
+def mask_token(value: str | None) -> str:
+    if not value:
+        return "none"
+    if value.startswith("Bearer "):
+        token = value[7:]
+        if len(token) <= 8:
+            return "Bearer " + "*" * len(token)
+        return "Bearer " + token[:4] + "..." + token[-4:]
+    if len(value) <= 8:
+        return "*" * len(value)
+    return value[:4] + "..." + value[-4:]
+
+
 def require_auth(info) -> None:
     if not API_TOKEN:
         return
     auth = get_auth_header(info)
     expected = f"Bearer {API_TOKEN}"
     if auth != expected:
-        logger.warning("Unauthorized request")
+        logger.warning(
+            "Unauthorized request auth=%s expected=%s",
+            mask_token(auth),
+            mask_token(expected),
+        )
         raise strawberry.exceptions.GraphQLError("Unauthorized")
 
 

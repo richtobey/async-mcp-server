@@ -54,6 +54,10 @@ export async function startServer(config) {
 
         const job = await startJob({ backendUrl, headerMap: effectiveHeaders, input });
         const wsUrl = addAuthToWsUrl(backendWsUrl, effectiveHeaders);
+        const hasAuth = Boolean(
+          effectiveHeaders?.Authorization || effectiveHeaders?.authorization
+        );
+        console.error(`Connecting WS to ${wsUrl} auth=${hasAuth}`);
         const wsClient = createClient({
           url: wsUrl,
           webSocketImpl: WebSocket,
