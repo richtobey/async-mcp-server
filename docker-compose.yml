@@ -4,4 +4,4 @@ services:
     ports:
       - "5000:5000"
     environment:
-      GRAPHQL_API_TOKEN: ${GRAPHQL_API_TOKEN:-}
+      GRAPHQL_API_TOKEN: ${GRAPHQL_API_TOKEN:-dev-token}

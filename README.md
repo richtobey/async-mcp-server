@@ -30,6 +30,7 @@ Ports:
 ```
 GRAPHQL_API_TOKEN=dev-token docker compose up --build
 ```
+If you omit `GRAPHQL_API_TOKEN`, Compose defaults it to `dev-token` (see `docker-compose.yml`).
 
 2) Install Node dependencies
 ```
@@ -45,6 +46,7 @@ To pass auth to the backend GraphQL service:
 ```
 node bin/mcp-facade.js http://127.0.0.1:5000/graphql --header "Authorization: Bearer YOUR_TOKEN"
 ```
+When using Compose defaults, the token is `dev-token`.
 
 4) Run the example client
 ```

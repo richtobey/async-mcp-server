@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import uuid
 from typing import AsyncGenerator, Dict, Set
@@ -24,6 +25,9 @@ class JobUpdate:
     message: str | None
     result: str | None
 
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger("backend")
 
 job_store: Dict[str, Job] = {}
 subscribers: Dict[str, Set[asyncio.Queue]] = {}
@@ -52,20 +56,24 @@ def require_auth(info) -> None:
     auth = get_auth_header(info)
     expected = f"Bearer {API_TOKEN}"
     if auth != expected:
+        logger.warning("Unauthorized request")
         raise strawberry.exceptions.GraphQLError("Unauthorized")
 
 
 async def publish(job_id: str, update: JobUpdate) -> None:
+    logger.info("Publish job=%s status=%s progress=%s", job_id, update.status, update.progress)
     for queue in list(subscribers.get(job_id, set())):
         await queue.put(update)
 
 
 async def run_job(job_id: str, input_text: str) -> None:
+    logger.info("Job %s started input=%s", job_id, input_text)
     total_steps = 5
     for step in range(1, total_steps + 1):
         await asyncio.sleep(1)
         progress = int(step / total_steps * 100)
         message = f"step {step} of {total_steps}"
+        logger.info("Job %s progress=%s message=%s", job_id, progress, message)
         update = JobUpdate(
             id=strawberry.ID(job_id),
             status="running",
@@ -77,6 +85,7 @@ async def run_job(job_id: str, input_text: str) -> None:
 
     result = f"processed: {input_text}"
     job_store[job_id] = Job(id=strawberry.ID(job_id), status="complete", progress=100, result=result)
+    logger.info("Job %s complete", job_id)
     await publish(
         job_id,
         JobUpdate(
@@ -105,6 +114,7 @@ class Mutation:
         job_id = str(uuid.uuid4())
         job = Job(id=strawberry.ID(job_id), status="queued", progress=0, result=None)
         job_store[job_id] = job
+        logger.info("Job %s queued input=%s", job_id, input)
         asyncio.create_task(run_job(job_id, input))
         return job
 
@@ -118,12 +128,14 @@ class Subscription:
         require_auth(info)
         queue: asyncio.Queue = asyncio.Queue()
         subscribers.setdefault(str(id), set()).add(queue)
+        logger.info("Job %s subscriber added", id)
         try:
             while True:
                 update = await queue.get()
                 yield update
         finally:
             subscribers[str(id)].discard(queue)
+            logger.info("Job %s subscriber removed", id)
 
 
 schema = strawberry.Schema(query=Query, mutation=Mutation, subscription=Subscription)
