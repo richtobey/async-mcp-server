@@ -124,14 +124,6 @@ Notes:
 - `docs/design.md`
 - `docs/ops.md`
 
-## Diagrams
-
-Generate SVG/PNG from Mermaid:
-
-```
-scripts/export-diagrams.sh
-```
-
 ## Run Tests
 
 ```
@@ -151,9 +143,11 @@ scripts/run-demo.sh
 If you prefer `make`:
 
 ```
-make diagrams
-make test
+make
 make demo
+make backend
+make test
+make diagrams
 ```
 
 ## Troubleshooting
