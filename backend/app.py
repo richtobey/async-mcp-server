@@ -2,6 +2,10 @@ import asyncio
 import logging
 import os
 import uuid
+from urllib.parse import parse_qs
+
+from starlette.requests import Request
+from starlette.websockets import WebSocket
 from typing import AsyncGenerator, Dict, Set
 
 import strawberry
@@ -36,11 +40,22 @@ API_TOKEN = os.getenv("GRAPHQL_API_TOKEN")
 
 def get_auth_header(info) -> str | None:
     context = info.context
-    request = context.get("request")
-    websocket = context.get("websocket")
-    connection_params = context.get("connection_params") if isinstance(context, dict) else None
+    request = None
+    websocket = None
+    connection_params = None
+
+    if isinstance(context, Request):
+        request = context
+    elif isinstance(context, WebSocket):
+        websocket = context
+    else:
+        request = _get_context_value(context, "request")
+        websocket = _get_context_value(context, "websocket")
+        connection_params = _get_context_value(context, "connection_params")
     if request is not None:
-        return request.headers.get("authorization")
+        auth = request.headers.get("authorization")
+        if auth:
+            return auth
     if websocket is not None:
         auth = websocket.headers.get("authorization")
         if auth:
@@ -48,10 +63,44 @@ def get_auth_header(info) -> str | None:
         query_auth = websocket.query_params.get("authorization") or websocket.query_params.get("Authorization")
         if query_auth:
             return query_auth
+        scope = getattr(websocket, "scope", {}) or {}
+        raw_query = scope.get("query_string")
+        if raw_query:
+            if isinstance(raw_query, bytes):
+                raw_query = raw_query.decode("utf-8", errors="ignore")
+            params = parse_qs(raw_query)
+            for key in ("authorization", "Authorization"):
+                values = params.get(key)
+                if values:
+                    return values[0]
     if isinstance(connection_params, dict):
         auth = connection_params.get("Authorization") or connection_params.get("authorization")
         if isinstance(auth, str):
             return auth
+    auth = extract_auth_from_params(connection_params)
+    if auth:
+        return auth
+    return None
+
+
+def _get_context_value(context, key: str):
+    if isinstance(context, dict):
+        return context.get(key)
+    return getattr(context, key, None)
+
+
+def extract_auth_from_params(params) -> str | None:
+    if not params:
+        return None
+    if isinstance(params, str):
+        return params
+    if isinstance(params, dict):
+        value = params.get("Authorization") or params.get("authorization")
+        return value if isinstance(value, str) else None
+    getter = getattr(params, "get", None)
+    if callable(getter):
+        value = getter("Authorization") or getter("authorization")
+        return value if isinstance(value, str) else None
     return None
 
 
@@ -68,16 +117,37 @@ def mask_token(value: str | None) -> str:
     return value[:4] + "..." + value[-4:]
 
 
+def describe_context(context) -> str:
+    if isinstance(context, Request):
+        return "Request"
+    if isinstance(context, WebSocket):
+        try:
+            return f"WebSocket query={context.url.query}"
+        except Exception:
+            return "WebSocket"
+    if isinstance(context, dict):
+        return f"dict keys={list(context.keys())}"
+    return f"{type(context).__name__}"
+
+
 def require_auth(info) -> None:
     if not API_TOKEN:
         return
     auth = get_auth_header(info)
     expected = f"Bearer {API_TOKEN}"
     if auth != expected:
+        context = info.context
+        connection_params = (
+            _get_context_value(context, "connection_params")
+            if not isinstance(context, (Request, WebSocket))
+            else None
+        )
         logger.warning(
-            "Unauthorized request auth=%s expected=%s",
+            "Unauthorized request auth=%s expected=%s context=%s connection_params=%s",
             mask_token(auth),
             mask_token(expected),
+            describe_context(info.context),
+            mask_token(extract_auth_from_params(connection_params)),
         )
         raise strawberry.exceptions.GraphQLError("Unauthorized")
 

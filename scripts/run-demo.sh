@@ -6,6 +6,7 @@ FACADE_LOG="${LOG_DIR}/facade.log"
 BACKEND_LOG="${LOG_DIR}/backend.log"
 DEMO_TIMEOUT="${DEMO_TIMEOUT:-45}"
 GRAPHQL_API_TOKEN="${GRAPHQL_API_TOKEN:-dev-token}"
+FACADE_PORT="${FACADE_PORT:-}"
 
 mkdir -p "$LOG_DIR"
 
@@ -46,7 +47,19 @@ for _ in {1..20}; do
 done
 
 echo "Starting facade..."
-node bin/mcp-facade.js http://127.0.0.1:5000/graphql --listen 7000 \
+if [[ -z "${FACADE_PORT}" ]]; then
+  FACADE_PORT=$(python3 - <<'PY'
+import socket
+s = socket.socket()
+s.bind(("", 0))
+print(s.getsockname()[1])
+s.close()
+PY
+)
+fi
+export FACADE_PORT
+echo "Facade port: ${FACADE_PORT}"
+node bin/mcp-facade.js http://127.0.0.1:5000/graphql --listen "$FACADE_PORT" \
   --header "Authorization: Bearer ${GRAPHQL_API_TOKEN}" \
   >"$FACADE_LOG" 2>&1 &
 FACADE_PID=$!
@@ -62,7 +75,7 @@ import sys
 timeout = int(os.environ.get("DEMO_TIMEOUT", "45"))
 try:
     subprocess.run(
-        ["node", "client/facade_client.js", "http://127.0.0.1:7000"],
+        ["node", "client/facade_client.js", f"http://127.0.0.1:{os.environ['FACADE_PORT']}"],
         check=True,
         timeout=timeout,
     )

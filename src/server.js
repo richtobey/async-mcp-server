@@ -61,7 +61,7 @@ export async function startServer(config) {
         const wsClient = createClient({
           url: wsUrl,
           webSocketImpl: WebSocket,
-          connectionParams: effectiveHeaders
+          connectionParams: buildConnectionParams(effectiveHeaders)
         });
 
         const notifyProgress = async (progress, message, total = 100) => {
@@ -310,4 +310,10 @@ function addAuthToWsUrl(url, headers) {
   } catch {
     return url;
   }
+}
+
+function buildConnectionParams(headers) {
+  const auth = headers?.Authorization || headers?.authorization;
+  if (!auth) return {};
+  return { Authorization: auth, authorization: auth };
 }
