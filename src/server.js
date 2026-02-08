@@ -53,8 +53,9 @@ export async function startServer(config) {
         const progressToken = extra?._meta?.progressToken ?? extra.requestId;
 
         const job = await startJob({ backendUrl, headerMap: effectiveHeaders, input });
+        const wsUrl = addAuthToWsUrl(backendWsUrl, effectiveHeaders);
         const wsClient = createClient({
-          url: backendWsUrl,
+          url: wsUrl,
           webSocketImpl: WebSocket,
           connectionParams: effectiveHeaders
         });
@@ -293,4 +294,16 @@ function toWebSocketUrl(url) {
   if (url.startsWith('https://')) return url.replace('https://', 'wss://');
   if (url.startsWith('http://')) return url.replace('http://', 'ws://');
   return url;
+}
+
+function addAuthToWsUrl(url, headers) {
+  const auth = headers?.Authorization || headers?.authorization;
+  if (!auth) return url;
+  try {
+    const wsUrl = new URL(url);
+    wsUrl.searchParams.set('authorization', auth);
+    return wsUrl.toString();
+  } catch {
+    return url;
+  }
 }

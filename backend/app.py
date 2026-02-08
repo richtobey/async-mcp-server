@@ -42,7 +42,12 @@ def get_auth_header(info) -> str | None:
     if request is not None:
         return request.headers.get("authorization")
     if websocket is not None:
-        return websocket.headers.get("authorization")
+        auth = websocket.headers.get("authorization")
+        if auth:
+            return auth
+        query_auth = websocket.query_params.get("authorization") or websocket.query_params.get("Authorization")
+        if query_auth:
+            return query_auth
     if isinstance(connection_params, dict):
         auth = connection_params.get("Authorization") or connection_params.get("authorization")
         if isinstance(auth, str):

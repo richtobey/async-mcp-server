@@ -133,6 +133,7 @@ make demo
 - **Port already in use**: stop the existing process or choose a new port via `--listen`.
 - **No progress events**: confirm the backend is reachable and the GraphQL subscription is accepted.
 - **Unauthorized errors**: if `GRAPHQL_API_TOKEN` is set, pass `Authorization: Bearer <token>` via `--header`.
+- **Unauthorized on WebSocket subscription**: ensure the same token is used for both HTTP and WS; the facade forwards auth to the subscription via `connectionParams` and a query param.
 
 ## Contributing
 See `CONTRIBUTING.md` for setup and guidelines.
