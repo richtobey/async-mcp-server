@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
@@ -129,6 +130,19 @@ export async function startServer(config) {
     return server;
   };
 
+  if (config.forceStdio || !Number.isFinite(config.listenPort)) {
+    try {
+      const server = createServer();
+      const transport = new StdioServerTransport();
+      await server.connect(transport);
+      console.error('MCP facade running on stdio');
+      return;
+    } catch (error) {
+      console.error('Failed to start stdio server:', error);
+      throw error;
+    }
+  }
+
   app.post('/mcp', async (req, res) => {
     try {
       const sessionId = req.headers['mcp-session-id'];
@@ -192,7 +206,7 @@ export async function startServer(config) {
       console.error('Failed to start server:', error);
       process.exit(1);
     }
-    console.log(`Server listening at http://${config.listenHost}:${config.listenPort}`);
+    console.error(`Server listening at http://${config.listenHost}:${config.listenPort}`);
   });
 
   process.on('SIGINT', async () => {

@@ -72,6 +72,7 @@ The facade exposes one MCP tool named `long_running_task`. Example prompts:
         "-y",
         "github:richtobey/async-mcp-server",
         "http://127.0.0.1:5000/graphql",
+        "--stdio",
         "--header",
         "Authorization: Bearer dev-token"
       ]
@@ -90,6 +91,7 @@ The facade exposes one MCP tool named `long_running_task`. Example prompts:
 
 Notes:
 - `npx github:richtobey/async-mcp-server` runs the `async-mcp-server` bin from this repo.
+- The facade uses stdio mode by default when `--listen` is omitted (ideal for Cursor). `--stdio` forces stdio.
 - The repo must be public for `npx` to fetch it.
 
 ## Docs

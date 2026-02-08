@@ -31,4 +31,4 @@ venv/
 # Misc
 .env
 .env.*
-**/articles/*
+**/archive/*

@@ -1,9 +1,10 @@
 export function parseArgs(args) {
   const config = {
     backendUrl: null,
-    listenPort: 7000,
+    listenPort: null,
     listenHost: '127.0.0.1',
-    headers: []
+    headers: [],
+    forceStdio: false
   };
 
   for (let i = 0; i < args.length; i += 1) {
@@ -28,6 +29,10 @@ export function parseArgs(args) {
       i += 1;
       continue;
     }
+    if (arg === '--stdio') {
+      config.forceStdio = true;
+      continue;
+    }
     if (!arg.startsWith('-') && !config.backendUrl) {
       config.backendUrl = arg;
       continue;
@@ -41,10 +46,12 @@ export function printUsage() {
   const lines = [
     'Usage:',
     '  mcp-facade <backend-graphql-url> [--header "Name: Value"] [--listen 7000] [--host 127.0.0.1]',
+    '  (defaults to stdio when --listen is omitted, or use --stdio)',
     '',
     'Examples:',
     '  mcp-facade http://localhost:5000/graphql --listen 7000',
-    '  mcp-facade http://localhost:5000/graphql --header "Authorization: Bearer TOKEN"'
+    '  mcp-facade http://localhost:5000/graphql --header "Authorization: Bearer TOKEN"',
+    '  mcp-facade http://localhost:5000/graphql --stdio'
   ];
   console.log(lines.join('\n'));
 }
